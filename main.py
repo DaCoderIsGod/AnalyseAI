@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import pandasai as pai
 from pandasai_litellm.litellm import LiteLLM
+import os
 
 st.set_page_config(page_title="Data Chatbot", layout="wide")
 st.title("Chat with Your Data")
@@ -28,7 +29,7 @@ if uploaded_file:
                         active_api_key = st.secrets["GROQ_API_KEY"]
                     
                     if not active_api_key:
-                        st.error("No API key found. Please provide a Groq API key in the sidebar.")
+                        st.error("No API key found. Please provide a Groq API key in the secrets dashboard.")
                     else:
                         llm = LiteLLM(model="groq/qwen/qwen3.8-27b", api_key=active_api_key)
 
@@ -37,19 +38,22 @@ if uploaded_file:
                             "save_charts": True,
                             "save_charts_path": "exports/charts"
                         })
+                        
                         df = pai.DataFrame(df_raw)
                         response = df.chat(user_query)
-                        
-                        import os
-
-                    st.subheader("Result")
-                    if isinstance(response, str) and (response.endswith('.png') or response.endswith('.jpg') or 'charts' in response):
-                        if os.path.exists(response):
-                            st.image(response, caption="Generated Chart", use_container_width=True)
+                        st.subheader("Result")
+                        response_str = str(response).strip().strip("'\"{}")
+                        if (".png" in response_str or ".jpg" in response_str or "charts" in response_str):
+                            if "value':" in response_str:
+                                response_str = response_str.split("value':")[-1].strip("'\" ")
+                            
+                            if os.path.exists(response_str):
+                                st.image(response_str, caption="Generated Chart", use_container_width=True)
+                            else:
+                                st.write(response)
                         else:
                             st.write(response)
-                    else:
-                        st.write(response)
+                            
                 except Exception as e:
                     st.error(f"An error occurred: {e}")
 else:
